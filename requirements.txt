@@ -1,0 +1,6 @@
+# HashCracker uses only Python standard library modules.
+# No external dependencies required.
+#
+# External tools (installed separately or via --setup):
+#   - hashcat  (https://hashcat.net)
+#   - john     (https://www.openwall.com/john/)

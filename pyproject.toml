@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hashcracker"
+version = "2.0.0"
+description = "Professional hash identification and cracking toolkit for security experts"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "sp1r4-r"},
+]
+keywords = [
+    "hash", "cracking", "hashcat", "john", "security",
+    "pentesting", "cybersecurity", "forensics",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/sp1r4-r/hashcracker"
+Repository = "https://github.com/sp1r4-r/hashcracker"
+Issues = "https://github.com/sp1r4-r/hashcracker/issues"
+
+[project.scripts]
+hashcracker = "hashcracker.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["hashcracker*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
