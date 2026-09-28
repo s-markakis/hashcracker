@@ -6,14 +6,17 @@ help: ## Show this help
 install: ## Install hashcracker as a Python package
 	pip install -e .
 
+install-dev: ## Install with test/lint tooling
+	pip install -e '.[dev]'
+
 setup: ## Install external tools and wordlists
-	python3 hash_cracker.py --setup
+	python3 -m hashcracker --setup
 
 test: ## Run unit tests
 	python3 -m pytest tests/ -v
 
-lint: ## Run flake8 linter
-	flake8 hashcracker/ --max-line-length=120 --ignore=E501,W503
+lint: ## Run flake8 linter (config in .flake8)
+	flake8 hashcracker/ tests/
 
 clean: ## Remove build artifacts and caches
 	rm -rf build/ dist/ *.egg-info .pytest_cache __pycache__
@@ -21,7 +24,7 @@ clean: ## Remove build artifacts and caches
 	find . -name '*.pyc' -delete 2>/dev/null || true
 
 identify: ## Example: identify a hash (usage: make identify HASH=<hash>)
-	python3 hash_cracker.py -H $(HASH)
+	python3 -m hashcracker -H $(HASH)
 
 crack: ## Example: crack a hash (usage: make crack HASH=<hash>)
-	python3 hash_cracker.py -H $(HASH) --crack
+	python3 -m hashcracker -H $(HASH) --crack

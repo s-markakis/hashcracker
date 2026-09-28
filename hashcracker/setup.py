@@ -235,7 +235,7 @@ def install_wordlists(plat, wordlist_dir=None):
     wl_dir = wordlist_dir or get_wordlist_dir(plat)
 
     print(f"\n{C.BOLD}{'─'*50}")
-    print(f" Wordlist Installation")
+    print(" Wordlist Installation")
     print(f"{'─'*50}{C.RESET}")
     print(f"{C.CYAN}  [*] Wordlist directory: {wl_dir}{C.RESET}\n")
 
@@ -350,7 +350,7 @@ def run_setup(wordlist_dir=None):
     print(f"{C.BOLD}  Elevated:{C.RESET}  {'Yes' if is_admin() else 'No'}")
 
     print(f"\n{C.BOLD}{'─'*50}")
-    print(f" Tool Installation")
+    print(" Tool Installation")
     print(f"{'─'*50}{C.RESET}")
 
     hc_ok = install_hashcat(plat)
@@ -359,7 +359,7 @@ def run_setup(wordlist_dir=None):
 
     # Summary
     print(f"\n{C.BOLD}{'═'*50}")
-    print(f" Setup Summary")
+    print(" Setup Summary")
     print(f"{'═'*50}{C.RESET}")
 
     hc_s = f"{C.GREEN}OK{C.RESET}" if check_tool('hashcat') else f"{C.RED}MISSING{C.RESET}"

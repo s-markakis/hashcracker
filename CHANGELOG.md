@@ -5,6 +5,35 @@ All notable changes to HashCracker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+- **Online lookup is now opt-in.** Hashes are no longer sent to third-party
+  services (`hashtoolkit.com`, `nitrxgen.net`) by default. Use `--online` to
+  enable it; `--offline` always forces local-only and overrides the config.
+  The lookup now names the services it contacts before sending anything.
+- Added `SECURITY.md` documenting authorized-use scope and hash handling.
+
+### Fixed
+- **Passwords containing `:` are no longer truncated.** hashcat now uses
+  `--outfile-format 2` (plaintext only) and John output is parsed colon-safely.
+- CI `lint` job now passes — cleared all flake8 findings (unused imports,
+  f-string placeholders, whitespace/indent) and centralized config in `.flake8`.
+- Machine-readable output (`--output-format json|csv`) no longer prints the
+  ASCII banner to stdout, so it can be piped and parsed directly.
+- Banner box no longer overflows for longer version strings (dynamic padding).
+- Base64 decode note only appends `...` when the hex is actually truncated.
+
+### Changed
+- Online lookup default (`online.enabled`) flipped to `false`.
+- `hashcat -I` device detection is cached per run instead of re-probed on every
+  crack attempt (notable speedup in combo mode).
+- John jumbo detection prefers `--list=build-info` over banner scraping.
+- Hash signature regexes are pre-compiled once at import.
+- Swallowed exceptions now log at debug level instead of passing silently.
+- Added `test`/`dev` extras (`pip install -e '.[test]'`) and expanded test
+  coverage (crack-output parsing, online guard, config, base64).
+
 ## [2.0.0] - 2026-03-31
 
 ### Added

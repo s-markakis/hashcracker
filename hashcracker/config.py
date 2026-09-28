@@ -27,7 +27,9 @@ DEFAULTS = {
         'force_cpu': 'false',
     },
     'online': {
-        'enabled': 'true',
+        # Off by default: cracking may involve sensitive/engagement hashes that
+        # should not leave the machine. Opt in with --online or set this to true.
+        'enabled': 'false',
         'timeout': '5',
     },
 }
@@ -138,7 +140,7 @@ class Config:
 
     @property
     def online_enabled(self):
-        return self.getboolean('online', 'enabled', True)
+        return self.getboolean('online', 'enabled', False)
 
     @property
     def online_timeout(self):

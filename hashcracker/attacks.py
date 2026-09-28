@@ -1,7 +1,7 @@
 """Attack strategies: dictionary, rules, mask, and combo wordlist attacks."""
 
 import os
-import time
+from typing import Optional
 
 from hashcracker.config import C, cfg
 from hashcracker.crack import (
@@ -42,10 +42,10 @@ def find_rules_file():
 # ─── Default Masks ─────────────────────────────────────────────────────────────
 
 DEFAULT_MASKS = [
-    ('Digits 1-8',     '?d?d?d?d?d?d?d?d'),
-    ('Digits 1-6',     '?d?d?d?d?d?d'),
-    ('Lower 1-6',      '?l?l?l?l?l?l'),
-    ('Lower+Digit',    '?l?l?l?l?l?d?d'),
+    ('Digits 1-8', '?d?d?d?d?d?d?d?d'),
+    ('Digits 1-6', '?d?d?d?d?d?d'),
+    ('Lower 1-6', '?l?l?l?l?l?l'),
+    ('Lower+Digit', '?l?l?l?l?l?d?d'),
     ('Upper+Lower+Digit', '?u?l?l?l?l?d?d'),
     ('Common pattern', '?u?l?l?l?l?l?d?d?s'),
     ('All printable 1-4', '?a?a?a?a'),
@@ -58,7 +58,7 @@ DEFAULT_MASKS = [
 
 def run_attack(hash_string, match, wordlist, tool='both', timeout=300,
                attack_mode='dictionary', mask=None, rules_file=None,
-               session_name=None, show_progress=True):
+               session_name=None, show_progress=True) -> Optional[dict]:
     """Run a specific attack against a hash.
 
     attack_mode: 'dictionary', 'rule', 'mask', 'combo'
@@ -96,7 +96,7 @@ def run_attack(hash_string, match, wordlist, tool='both', timeout=300,
 
 
 def _dictionary_attack(hash_string, match, wordlist, tool, timeout,
-                        session_name, show_progress):
+                       session_name, show_progress):
     """Standard dictionary/wordlist attack."""
     # Try hashcat
     if tool in ('both', 'hashcat') and match['hashcat_mode'] is not None:
@@ -121,7 +121,7 @@ def _dictionary_attack(hash_string, match, wordlist, tool, timeout,
 
 
 def _rule_attack(hash_string, match, wordlist, tool, timeout,
-                  rules_file, session_name, show_progress):
+                 rules_file, session_name, show_progress):
     """Dictionary + rules attack (hashcat -r, john --rules)."""
     if not rules_file:
         rules_file = find_rules_file()
@@ -157,7 +157,7 @@ def _rule_attack(hash_string, match, wordlist, tool, timeout,
 
 
 def _mask_attack(hash_string, match, tool, timeout, mask,
-                  session_name, show_progress):
+                 session_name, show_progress):
     """Brute-force mask attack (hashcat -a 3)."""
     if tool not in ('both', 'hashcat'):
         print(f"{C.RED}[!] Mask attack requires hashcat.{C.RESET}")
@@ -188,7 +188,7 @@ def _mask_attack(hash_string, match, tool, timeout, mask,
 
 
 def _combo_attack(hash_string, match, tool, timeout,
-                   rules_file, session_name, show_progress):
+                  rules_file, session_name, show_progress):
     """Try multiple wordlists from smallest to largest, then rules, then mask."""
     wordlists = find_wordlists()
     if not wordlists:

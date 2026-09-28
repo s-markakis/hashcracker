@@ -3,13 +3,12 @@
 import argparse
 import os
 import sys
-import time
 
 from hashcracker import __version__
 from hashcracker.config import C, cfg, CONFIG_FILE
-from hashcracker.identify import identify_hash, print_identification, format_identification
+from hashcracker.identify import identify_hash, print_identification
 from hashcracker.crack import (
-    find_wordlist, find_wordlists, resume_session, list_sessions,
+    find_wordlist, resume_session, list_sessions,
     detect_hashcat_devices,
 )
 from hashcracker.attacks import run_attack
@@ -24,13 +23,22 @@ from hashcracker.utils import check_tool, get_clipboard
 
 
 def banner():
-    print(f"""{C.CYAN}{C.BOLD}
-    ╔═══════════════════════════════════════════════╗
-    ║          HASH CRACKER v{__version__:<22s}  ║
-    ║     Hash Identification & Cracking Tool       ║
-    ║   Powered by Hashcat & John the Ripper        ║
-    ╚═══════════════════════════════════════════════╝
-    {C.RESET}""")
+    width = 47
+
+    def row(text):
+        # Center text within the box; truncate if it would overflow the border.
+        if len(text) > width:
+            text = text[:width]
+        return f"    ║{text.center(width)}║"
+
+    lines = [
+        f"    ╔{'═' * width}╗",
+        row(f"HASH CRACKER v{__version__}"),
+        row("Hash Identification & Cracking Tool"),
+        row("Powered by Hashcat & John the Ripper"),
+        f"    ╚{'═' * width}╝",
+    ]
+    print(f"{C.CYAN}{C.BOLD}\n" + "\n".join(lines) + f"\n    {C.RESET}")
 
 
 def _auto_setup_prompt():
@@ -104,8 +112,11 @@ def _process_hash(hash_string, args, wordlist):
         print(f"{C.RED}[!] No wordlist available for cracking.{C.RESET}")
         return {'hash': hash_string, 'password': None, 'type': matches[0]['name']}
 
-    # Online lookup first (unless disabled)
-    if not args.offline and cfg.online_enabled:
+    # Online lookup first. Opt-in: hashes leave the machine only when the user
+    # explicitly asks (--online), or enables it in the config. --offline always
+    # wins so it can override a config default.
+    online_active = (args.online or cfg.online_enabled) and not args.offline
+    if online_active:
         online_result = online_lookup(hash_string)
         if online_result:
             result = {
@@ -293,7 +304,9 @@ Results log: ~/.hashcracker/results.log
     parser.add_argument('--identify-only', action='store_true',
                         help='Only identify hash type, do not crack')
     parser.add_argument('--offline', action='store_true',
-                        help='Skip online hash lookup')
+                        help='Never query online databases (overrides --online and config)')
+    parser.add_argument('--online', action='store_true',
+                        help='Opt in to online hash lookup (sends the hash to third-party sites)')
 
     parser.add_argument('--version', action='version', version=f'HashCracker {__version__}')
 
@@ -341,7 +354,9 @@ Results log: ~/.hashcracker/results.log
         parser.print_help()
         return
 
-    banner()
+    # Keep stdout clean for machine-readable formats so it can be piped/parsed.
+    if (args.output_format or cfg.output_format) == 'text':
+        banner()
 
     # ── Auto-setup check ──
     if args.crack:

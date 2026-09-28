@@ -30,7 +30,7 @@
 | **60+ Hash Types** | MD5, SHA-1/256/512, SHA3, bcrypt, scrypt, Argon2, NTLM, Kerberos, WordPress, Cisco, Oracle, MSSQL, PostgreSQL, and more |
 | **Confidence Scoring** | Ranks identified hash types by probability — no more guessing which MD5 variant it is |
 | **4 Attack Modes** | Dictionary, Rule-based, Mask (brute-force), and Combo (auto-chains all strategies) |
-| **Online Lookup** | Checks online hash databases before spending compute time |
+| **Online Lookup** | *Opt-in* (`--online`): checks third-party hash databases before spending compute time. Off by default so hashes never leave your machine unless you ask |
 | **GPU Auto-Detection** | Automatically detects and uses GPU acceleration when available |
 | **Cross-Platform** | Works on Linux (Debian/RHEL/Arch/SUSE), macOS, and Windows |
 | **Auto-Installer** | One command to install hashcat, John the Ripper, and wordlists |
@@ -60,6 +60,11 @@ python3 hash_cracker.py -H 5f4dcc3b5aa765d61d8327deb882cf99
 # Identify and crack
 python3 hash_cracker.py -H 5f4dcc3b5aa765d61d8327deb882cf99 --crack
 ```
+
+> **Entry points:** the examples use the `hash_cracker.py` convenience shim.
+> After `pip install -e .` you can also use the `hashcracker` console script or
+> `python -m hashcracker` (recommended, no path juggling). All three are
+> equivalent.
 
 ---
 
@@ -164,7 +169,11 @@ In interactive mode, you can paste hashes one at a time and the tool will identi
 # Read hash from clipboard
 python3 hash_cracker.py --clipboard --crack
 
-# Skip online lookup (offline-only cracking)
+# Online lookup is OFF by default. Opt in explicitly (sends the hash to
+# third-party sites: hashtoolkit.com, nitrxgen.net):
+python3 hash_cracker.py -H <hash> --crack --online
+
+# Force offline (overrides --online and any config setting):
 python3 hash_cracker.py -H <hash> --crack --offline
 
 # Save and resume sessions
@@ -253,7 +262,7 @@ rules_dir =                  # custom rules directory
 force_cpu = false            # force CPU-only mode
 
 [online]
-enabled = true               # enable online hash lookup
+enabled = false              # opt-in online hash lookup (sends hashes off-host)
 timeout = 5                  # API timeout in seconds
 ```
 

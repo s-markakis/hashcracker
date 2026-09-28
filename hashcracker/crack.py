@@ -1,20 +1,30 @@
 """Core cracking functions for hashcat and John the Ripper."""
 
+import logging
 import os
 import shutil
 import subprocess
 import tempfile
 import threading
 import time
+from functools import lru_cache
+from typing import Optional
 
 from hashcracker.config import C, cfg
 from hashcracker.utils import check_tool
 
+log = logging.getLogger('hashcracker')
+
 
 # ─── GPU / Device Detection ───────────────────────────────────────────────────
 
+@lru_cache(maxsize=1)
 def detect_hashcat_devices():
-    """Detect available hashcat devices. Returns a dict with device info."""
+    """Detect available hashcat devices. Returns a dict with device info.
+
+    Cached: probing with ``hashcat -I`` is expensive and the device set does
+    not change within a single run, so it is only executed once.
+    """
     if not check_tool('hashcat'):
         return {'gpu': False, 'cpu': True, 'devices': []}
 
@@ -31,7 +41,8 @@ def detect_hashcat_devices():
             if line.startswith('* Device') or 'Type' in line:
                 devices.append(line)
         return {'gpu': has_gpu, 'cpu': True, 'devices': devices}
-    except Exception:
+    except Exception as e:
+        log.debug('hashcat device detection failed: %s', e)
         return {'gpu': False, 'cpu': True, 'devices': []}
 
 
@@ -59,19 +70,35 @@ def _find_john():
     return None
 
 
-def _is_john_jumbo(john_bin):
-    """Check if the installed john is the jumbo version."""
+def _is_john_jumbo(john_bin: str) -> bool:
+    """Check if the installed john is the jumbo version.
+
+    ``--list=build-info`` is a jumbo-only option; if it succeeds and mentions
+    jumbo we are confident. Fall back to scanning the banner for older builds.
+    """
+    try:
+        result = subprocess.run(
+            [john_bin, '--list=build-info'],
+            capture_output=True, text=True, timeout=5,
+        )
+        info = (result.stdout + result.stderr).lower()
+        if 'jumbo' in info:
+            return True
+    except Exception as e:
+        log.debug('john build-info probe failed: %s', e)
+
     try:
         result = subprocess.run([john_bin], capture_output=True, text=True, timeout=5)
         output = result.stdout + result.stderr
         return 'jumbo' in output.lower() or '--format' in output
-    except Exception:
+    except Exception as e:
+        log.debug('john version probe failed: %s', e)
         return False
 
 
 # ─── Wordlist Discovery ───────────────────────────────────────────────────────
 
-def find_wordlists():
+def find_wordlists() -> list:
     """Find all available wordlists, sorted by size (smallest first).
 
     Returns list of file paths.
@@ -110,7 +137,7 @@ def find_wordlists():
     return sorted(wordlist_files, key=lambda f: os.path.getsize(f))
 
 
-def find_wordlist():
+def find_wordlist() -> Optional[str]:
     """Find the best single wordlist (largest available)."""
     wordlists = find_wordlists()
     if not wordlists:
@@ -120,6 +147,36 @@ def find_wordlist():
         if 'rockyou' in os.path.basename(wl).lower():
             return wl
     return wordlists[-1]  # largest
+
+
+# ─── Output Parsing ───────────────────────────────────────────────────────────
+
+def _parse_hashcat_outfile(content: str) -> Optional[str]:
+    """Extract the plaintext from a hashcat ``--outfile-format 2`` file.
+
+    Format 2 writes the plaintext only (one per line), so the whole line is the
+    password — including any ':' it may contain.
+    """
+    for line in content.splitlines():
+        if line:
+            return line
+    return None
+
+
+def _parse_john_show(stdout: str) -> Optional[str]:
+    """Extract the plaintext from ``john --show`` output.
+
+    Lines look like ``login:password[:extra fields]``. The password may itself
+    contain ':', so everything after the first field is preserved.
+    """
+    for line in stdout.strip().splitlines():
+        line = line.rstrip('\n')
+        if ':' not in line or 'password hash' in line.lower():
+            continue
+        _, _, password = line.partition(':')
+        if password:
+            return password
+    return None
 
 
 # ─── Hashcat Cracking ─────────────────────────────────────────────────────────
@@ -142,7 +199,7 @@ def _stream_hashcat_output(proc):
 
 def crack_with_hashcat(hash_string, mode, wordlist, timeout_sec=300,
                        rules_file=None, mask=None, attack_mode=0,
-                       session_name=None, show_progress=True):
+                       session_name=None, show_progress=True) -> Optional[dict]:
     """Attempt to crack hash using hashcat.
 
     Returns: dict with 'password', 'time_elapsed' keys, or None.
@@ -180,6 +237,7 @@ def crack_with_hashcat(hash_string, mode, wordlist, timeout_sec=300,
 
         cmd.extend([
             '-o', outfile,
+            '--outfile-format', '2',  # plaintext only — avoids hash:plain colon ambiguity
             '--potfile-disable',
             '--quiet',
         ])
@@ -217,7 +275,7 @@ def crack_with_hashcat(hash_string, mode, wordlist, timeout_sec=300,
             finally:
                 print()  # newline after progress
         else:
-            result = subprocess.run(
+            subprocess.run(
                 cmd, capture_output=True, text=True, timeout=timeout_sec,
             )
 
@@ -226,9 +284,9 @@ def crack_with_hashcat(hash_string, mode, wordlist, timeout_sec=300,
         # Check output file
         if os.path.exists(outfile):
             with open(outfile) as f:
-                content = f.read().strip()
-            if content:
-                password = content.split(':')[-1]
+                content = f.read()
+            password = _parse_hashcat_outfile(content)
+            if password is not None:
                 return {'password': password, 'time_elapsed': elapsed}
 
         return None
@@ -248,7 +306,7 @@ def crack_with_hashcat(hash_string, mode, wordlist, timeout_sec=300,
 # ─── John Cracking ────────────────────────────────────────────────────────────
 
 def crack_with_john(hash_string, john_format, wordlist, timeout_sec=300,
-                    rules=False):
+                    rules=False) -> Optional[dict]:
     """Attempt to crack hash using John the Ripper.
 
     Returns: dict with 'password', 'time_elapsed' keys, or None.
@@ -291,11 +349,9 @@ def crack_with_john(hash_string, john_format, wordlist, timeout_sec=300,
         show_result = subprocess.run(show_cmd, capture_output=True, text=True, timeout=30)
 
         if show_result.stdout:
-            for line in show_result.stdout.strip().split('\n'):
-                if ':' in line and 'password hashes cracked' not in line.lower():
-                    parts = line.split(':')
-                    if len(parts) >= 2 and parts[1]:
-                        return {'password': parts[1], 'time_elapsed': elapsed}
+            password = _parse_john_show(show_result.stdout)
+            if password is not None:
+                return {'password': password, 'time_elapsed': elapsed}
 
         return None
 
@@ -335,7 +391,6 @@ def resume_session(session_name):
 
 def list_sessions():
     """List saved hashcat sessions."""
-    from hashcracker.config import SESSIONS_DIR
     sessions = []
 
     # Check hashcat's default session directory

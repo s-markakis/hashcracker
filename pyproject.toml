@@ -34,6 +34,10 @@ classifiers = [
     "Topic :: Utilities",
 ]
 
+[project.optional-dependencies]
+test = ["pytest"]
+dev = ["pytest", "flake8"]
+
 [project.urls]
 Homepage = "https://github.com/sp1r4-r/hashcracker"
 Repository = "https://github.com/sp1r4-r/hashcracker"

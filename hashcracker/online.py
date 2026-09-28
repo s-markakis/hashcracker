@@ -1,11 +1,17 @@
 """Online hash lookup against free databases before local cracking."""
 
-import json
+import logging
 import re
 import urllib.request
 import urllib.parse
 
 from hashcracker.config import C, cfg
+
+log = logging.getLogger('hashcracker')
+
+# Third-party services queried by online_lookup. Surfaced to the operator so
+# they know where a hash is sent before any lookup happens.
+ONLINE_SERVICES = ('hashtoolkit.com', 'nitrxgen.net')
 
 
 def online_lookup(hash_string, timeout=None):
@@ -20,7 +26,8 @@ def online_lookup(hash_string, timeout=None):
     if not re.match(r'^[a-fA-F0-9]{16,128}$', hash_string):
         return None
 
-    print(f"{C.CYAN}[*] Checking online databases...{C.RESET}")
+    print(f"{C.CYAN}[*] Checking online databases "
+          f"(sending hash to: {', '.join(ONLINE_SERVICES)})...{C.RESET}")
 
     result = _lookup_hashtoolkit(hash_string, timeout)
     if result:
@@ -52,8 +59,8 @@ def _lookup_hashtoolkit(hash_string, timeout):
             if plaintext and plaintext != hash_string:
                 print(f"{C.GREEN}    [+] Found on hashtoolkit.com{C.RESET}")
                 return plaintext
-    except Exception:
-        pass
+    except Exception as e:
+        log.debug('hashtoolkit lookup failed: %s', e)
     return None
 
 
@@ -69,6 +76,6 @@ def _lookup_nitrxgen(hash_string, timeout):
         if result and result != hash_string and len(result) < 100:
             print(f"{C.GREEN}    [+] Found on nitrxgen.net{C.RESET}")
             return result
-    except Exception:
-        pass
+    except Exception as e:
+        log.debug('nitrxgen lookup failed: %s', e)
     return None
