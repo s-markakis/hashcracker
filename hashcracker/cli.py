@@ -22,6 +22,22 @@ from hashcracker.setup import run_setup
 from hashcracker.utils import check_tool, get_clipboard
 
 
+def _ensure_utf8_output():
+    """Make stdout/stderr UTF-8 so box-drawing output works on Windows.
+
+    Windows consoles default to a legacy code page (e.g. cp1252) that cannot
+    encode the box-drawing/table characters used throughout the UI, raising
+    UnicodeEncodeError. Reconfiguring to UTF-8 with error replacement keeps
+    output safe everywhere. No-op where the stream can't be reconfigured
+    (e.g. replaced by a test harness).
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError):
+            pass
+
+
 def banner():
     width = 47
 
@@ -232,6 +248,7 @@ def interactive_mode(args, wordlist):
 
 
 def main():
+    _ensure_utf8_output()
     parser = argparse.ArgumentParser(
         description='HashCracker v2.0 - Identify and crack password hashes',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -399,5 +416,5 @@ Results log: ~/.hashcracker/results.log
             lines = []
             for r in results:
                 pw = r.get('password', '')
-                lines.append(f"{r.get('hash','')}:{pw if pw else '???'}")
+                lines.append(f"{r.get('hash', '')}:{pw if pw else '???'}")
             save_output('\n'.join(lines), args.output)
