@@ -3,12 +3,18 @@
 import base64
 import re
 import string
+from typing import Optional
 
 from hashcracker.config import C
 from hashcracker.signatures import HASH_SIGNATURES
 
+# Pre-compile signature patterns once at import rather than re-matching from
+# strings on every identify_hash call.
+_COMPILED_SIGNATURES = [(re.compile(sig['pattern']), sig) for sig in HASH_SIGNATURES]
+_HEX_RE = re.compile(r'^[a-fA-F0-9]+$')
 
-def _is_base64(s):
+
+def _is_base64(s: str) -> bool:
     """Check if a string looks like base64-encoded data."""
     s = s.strip()
     if len(s) < 8 or len(s) % 4 != 0:
@@ -25,17 +31,16 @@ def _is_base64(s):
     return False
 
 
-def _try_base64_decode(s):
+def _try_base64_decode(s: str) -> Optional[str]:
     """Try to base64-decode a string and return the hex representation."""
     try:
         decoded = base64.b64decode(s)
-        hex_str = decoded.hex()
-        return hex_str
+        return decoded.hex()
     except Exception:
         return None
 
 
-def identify_hash(hash_string):
+def identify_hash(hash_string: str) -> list:
     """Identify possible hash types based on pattern matching.
 
     Returns list of dicts sorted by confidence (highest first):
@@ -49,10 +54,12 @@ def identify_hash(hash_string):
 
     # Try base64 detection
     decoded_hex = None
-    if _is_base64(hash_string) and not re.match(r'^[a-fA-F0-9]+$', hash_string):
+    if _is_base64(hash_string) and not _HEX_RE.match(hash_string):
         decoded_hex = _try_base64_decode(hash_string)
         if decoded_hex:
-            note = f"Detected base64 encoding. Decoded hex: {decoded_hex[:64]}..."
+            shown = decoded_hex[:64]
+            ellipsis = '...' if len(decoded_hex) > 64 else ''
+            note = f"Detected base64 encoding. Decoded hex: {shown}{ellipsis}"
 
     # Match against signatures
     targets = [hash_string]
@@ -60,8 +67,8 @@ def identify_hash(hash_string):
         targets.append(decoded_hex)
 
     for target in targets:
-        for sig in HASH_SIGNATURES:
-            if re.match(sig['pattern'], target) and sig['name'] not in seen_names:
+        for pattern, sig in _COMPILED_SIGNATURES:
+            if pattern.match(target) and sig['name'] not in seen_names:
                 matches.append({
                     'name': sig['name'],
                     'hashcat_mode': sig['hashcat_mode'],

@@ -1,12 +1,14 @@
 """Shared utilities: command execution, platform detection, clipboard."""
 
+import logging
 import os
 import platform
 import shutil
 import subprocess
-import sys
 
 from hashcracker.config import C
+
+log = logging.getLogger('hashcracker')
 
 
 def get_platform():
@@ -27,7 +29,8 @@ def is_admin():
         try:
             import ctypes
             return ctypes.windll.shell32.IsUserAnAdmin() != 0
-        except Exception:
+        except Exception as e:
+            log.debug('is_admin check failed: %s', e)
             return False
     else:
         return os.geteuid() == 0
